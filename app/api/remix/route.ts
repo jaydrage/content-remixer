@@ -4,6 +4,8 @@ import Anthropic from '@anthropic-ai/sdk'
 // Types for request and response
 type RemixRequest = {
   text: string
+  platform: 'twitter' | 'instagram' | 'linkedin'
+  prompt: string
 }
 
 type RemixResponse = {
@@ -46,8 +48,8 @@ export async function POST(request: Request) {
   })
 
   try {
-    const { text } = await request.json() as RemixRequest
-    console.log('Processing remix request for text:', text)
+    const { text, platform, prompt } = await request.json() as RemixRequest
+    console.log('Processing remix request:', { platform, text })
 
     console.log('Making request to Claude API...')
     const response = await anthropic.messages.create({
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
       max_tokens: 1024,
       messages: [{
         role: 'user',
-        content: TWEET_GENERATION_PROMPT.replace('{text}', text)
+        content: `${prompt}\n\nInput text: ${text}`
       }]
     })
     console.log('Claude API Response:', JSON.stringify(response, null, 2))
@@ -67,22 +69,22 @@ export async function POST(request: Request) {
       throw new Error('Unexpected response format from Claude API')
     }
 
-    // Parse the response into individual tweets
-    const tweets = remixedContent
+    // Parse the response into individual posts
+    const posts = remixedContent
       .split('\n')
       .filter(line => line.trim())
       .map(line => {
         // Remove the number prefix (e.g., "1.", "2.", etc.)
-        const tweetText = line.replace(/^\d+\.\s*/, '').trim()
-        return tweetText
+        const postText = line.replace(/^\d+\.\s*/, '').trim()
+        return postText
       })
 
-    if (tweets.length !== 6) {
-      throw new Error('Expected exactly 6 tweets in response')
+    if (posts.length !== 6) {
+      throw new Error('Expected exactly 6 posts in response')
     }
 
     return NextResponse.json<RemixResponse>({ 
-      tweets: tweets
+      tweets: posts
     })
   } catch (error) {
     const errorDetails = {
